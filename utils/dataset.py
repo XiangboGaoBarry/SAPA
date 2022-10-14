@@ -10,6 +10,15 @@ from tqdm import tqdm
 
 
 def get_perspective_matrix(shape, ratio=0.1):
+	"""Get the perspective transformation matrix for the entire rain streak image
+
+	Args:
+		shape (tuple, list): image shape
+		ratio (float): image rotation around the x axis. Defaults to 0.1.
+
+	Returns:
+		np.ndarry: perspective transformation matrix
+	"""
 	W, H = shape
 	scaling = W * ratio
 	if ratio > 0:
@@ -189,51 +198,59 @@ class MultilayerConditionalRain:
 
 
 	def select_d(self, minD=10, maxD=28, step=3):
+		"""Randomly select a rain drop's depth from the view frustum
+
+		Args:
+			minD (int): minimum depth. Defaults to 10.
+			maxD (int): maximum depth. Defaults to 28.
+			step (int): step distance between depth levels. Defaults to 3.
+
+		Returns:
+			tuple(float, int): (rain drop's depth, rain drop's depth level)
+		"""
 		d = 0
-		iters = 0
 		assert maxD > minD
 		while d <= minD:
-			iters += 1
-			assert iters <= 100000
 			d = np.sqrt(np.random.rand())
 			d *= maxD
 		thre = (d - minD) // step
 		return d, int(thre)
 
 	def set_condition(self, min_values=[15, -15, 5, 10], range=[15, 30, 10, 8]):
+		"""Set the condition parameter for rain pattern generation
+
+		Args:
+			min_values (list): The min value of the parameter for rain streak length ratio, 
+  										streak angle, rain density, and rain streak radius, respectively. 
+         								Defaults to [15, -15, 5, 10].
+			range (list): The range of the parameter for rain streak length ratio, 
+  									streak angle, rain density, and rain streak radius, respectively. 
+         							Defaults to [15, 30, 10, 8].
+
+		Returns:
+			list: An array of size 4. A condition parameter uniformly draw from the given range.
 		"""
-		Set the condition parameter for rain pattern generation
-		:param min_values: The min value of the parameter for rain streak length ratio, 
-  							streak angle, rain density, and rain streak radius, respectively.
-		:param range: The range of the parameter for rain streak length ratio, 
-  							streak angle, rain density, and rain streak radius, respectively.
-		:return: An array of size 4. A condition parameter uniformly draw from the given range.
-		"""	
   		
-		lr_para = [range[0], min_values[0]]  # 15 ~ 30
-		angle_para = [range[1], min_values[1]]  # -15 ~ 15
+		lr_para = [range[0], min_values[0]]
+		angle_para = [range[1], min_values[1]]
 		self.length_ratio = self.random() * lr_para[0] + lr_para[1]
 		self.angle = self.random() * angle_para[0] + angle_para[1]
 
-		dc_para = [int(self.size[0]**2 * range[2] / 1024), int(self.size[0]**2 * min_values[2] / 1024)]  # 0.5 ~ 10.5
-		radius_para = [range[3], min_values[3]]  # 10 ~ 20
-
-		dc0 = self.random() * dc_para[0] + dc_para[1]
-		radius0 = self.random() * radius_para[0] + radius_para[1]
-		self.radius0 = radius0
-		# self.dc_list = [int(dc0 * dr ** 2) for dr in self.depth_ratio]
-		self.dc = int(dc0)
-		# self.radius_list = [radius0 / dr for dr in self.depth_ratio]
+		dc_para = [int(self.size[0]**2 * range[2] / 1024), int(self.size[0]**2 * min_values[2] / 1024)]
+		radius_para = [range[3], min_values[3]]
+		dc_ = self.random() * dc_para[0] + dc_para[1]
+		self.radius = self.random() * radius_para[0] + radius_para[1]
+		self.dc = int(dc_)
 
 		lr = (self.length_ratio - lr_para[1]) / lr_para[0]
-		dc = (dc0 - dc_para[1]) / dc_para[0]
+		dc = (dc_ - dc_para[1]) / dc_para[0]
 		angle = (self.angle - angle_para[1]) / angle_para[0]
-		rr = (radius0 - radius_para[1]) / radius_para[0]
+		rr = (self.radius - radius_para[1]) / radius_para[0]
 		return [lr, dc, angle, rr]
 
 	def generate_drop(self, depth):
 		drop_layer = np.zeros_like(self.rain)
-		radius = self.radius0 / depth
+		radius = self.radius / depth
 		center = np.array([self.random(), self.random()])
 
 		self.draw_drop(depth, drop_layer, center, radius)
@@ -261,21 +278,5 @@ class MultilayerConditionalRain:
 
 		return make_streak(self.angle)
 
-	def random_distortion(self):
-		std = 0.2
-		length = 8
-		distortion = np.random.normal(1., std, length)
-		for i in range(1, len(distortion)):
-			distortion[i] *= distortion[i - 1]
-		return distortion
-
-	def make_distortion(self, motion_blur_kernel, distortion):
-		kernel_size = motion_blur_kernel.shape[0]
-		length = len(distortion)
-		xp = np.arange(length) * float(kernel_size) / length
-		x = np.arange(kernel_size)
-		distortion = np.interp(x, xp, distortion)
-		motion_blur_kernel = motion_blur_kernel * distortion.reshape((-1, 1))
-		return motion_blur_kernel
 
 

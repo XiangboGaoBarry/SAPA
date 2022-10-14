@@ -13,7 +13,7 @@ class TestWrapper():
             print(f"TEST {self.test_idx}: Testing [{func.__name__}] ...")
             start = time()
             func(*args, **kwargs)
-            print(f"[{func.__name__}] takes {time() - start} seconds")
+            print(f"[{func.__name__}] takes {round(time() - start, 4)} seconds")
         return wrapper
     
 test_wrapper = TestWrapper()
