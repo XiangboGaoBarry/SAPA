@@ -2,7 +2,7 @@
 Repository of [Scale-Agnostic Photorealistic Adversarial Pattern Attack](https://arxiv.org/abs/2208.06222)
 
 <p align="center">
-  <img width="1200" height="550" src="paper_imgs/visual.png">
+  <img src="paper_imgs/visual.png">
 </p>
 
 ## Attack
