@@ -26,7 +26,10 @@ def to_device(tensor):
         return tensor
 
 
-to_tensor = transforms.Compose([transforms.Resize((256, 256)), transforms.ToTensor()])
+to_tensor = lambda shape: transforms.Compose([transforms.Resize(shape), 
+                                              transforms.ToTensor(), 
+                                              transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                                                    std=[0.229, 0.224, 0.225])])
 
 preprocess = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                 std=[0.229, 0.224, 0.225])

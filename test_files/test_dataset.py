@@ -31,7 +31,7 @@ def test_depth_prediction():
     from utils.depth_prediction import DepthPrediction
     from utils.utils import to_device
     
-    source_path = "test_files/test_imgs/clean.jpg"
+    source_path = "test_imgs/img1.jpg"
     img = np.array(Image.open(source_path))
     dp = DepthPrediction()
     img_t = dp.midas_transforms(img)
@@ -58,7 +58,7 @@ def test_rain_synthesis():
     rain_layers = [torch.Tensor(np.array(Image.open(f"{source_path}/out/rain_generation/depth_map_{idx}.png")))
                                 for idx in range(6)]
     rain_layers = torch.stack(rain_layers).unsqueeze(0)
-    img = np.array(Image.open(f"{source_path}/test_imgs/clean.jpg"))
+    img = np.array(Image.open(f"test_imgs/img1.jpg"))
     dp = DepthPrediction()
     depth = dp(to_device(dp.midas_transforms(img)), ret_shape=(256, 256))
     rain_synthesizer = RainSynthesisDepth()
@@ -69,3 +69,13 @@ def test_rain_synthesis():
     if not os.path.isdir(save_dir): os.mkdir(save_dir)
     syn_img.save(f"{save_dir}/syn_img.png")
     print(f"image saved to {save_dir}/syn_img.png")
+    
+# @timer
+# def test_PQGAN_inference():
+#     from models import PQGAN
+#     from utils.config import args
+#     args.is_train = 'False'
+#     checkpoints_dir = "models/pretrained/nz128"
+    
+#     pqgan = PQGAN()
+    
