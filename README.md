@@ -6,7 +6,7 @@ Repository of [Scale-Agnostic Photorealistic Adversarial Pattern Attack](https:/
 </p>
 
 ## Attack
-- Please download the [weights]() and put them under `SAPA/models/pretrained`.
+- Please download the [weights](https://drive.google.com/drive/folders/1doXN4qOOek-F39zVGwjSVIbZcjgN2Un9?usp=sharing) and put them under `SAPA/models/pretrained`.
 
 ### Classification model
 - Put the images to `SAPA/test_imgs` and specify their ground truth label under `SAPA/test_imgs/labels.txt`.
