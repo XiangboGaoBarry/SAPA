@@ -37,16 +37,31 @@ args = parser.parse_args()
 #         score = clf.predict(feature)[0]
 #     print("{}-----{} score:{}".format(path, mode, score))
 
+from brisque import BRISQUE
+import numpy as np
+
+
+import random
+
+
+
+
 if __name__ == "__main__":
     '''
     test conventional blindly image quality assessment methods(brisque/niqe/piqe)
     '''
     mode = args.mode
     path = args.path
-    p_score_sum = n_score_sum = b_score_sum = 0
+    p_score_sum = n_score_sum = b_score_sum = b_score_2_sum = 0
     
-    for idx, filename in enumerate(os.listdir(path)):
-        im = cv2.imread(f"{filename}/{path}")
+    from pathlib import Path
+
+    file_path_list = [f for f in Path(path).rglob('*.*')]
+    random.shuffle(file_path_list)
+    
+    for idx, file_path in enumerate(file_path_list):
+        im = cv2.imread(str(file_path))
+        im = cv2.resize(im, (256, 256))
         p_score, _, _, _ = piqe(im)
         p_score_sum += p_score
         n_score = niqe(im)
@@ -56,6 +71,12 @@ if __name__ == "__main__":
         clf = load('utils/quality_assessment/svr_brisque.joblib')
         b_score = clf.predict(feature)[0]
         b_score_sum += b_score
-        print("{}----- piqe:{}, niqe:{}, brisque:{}".format(path, p_score, n_score, b_score))
-    print("{} avg:  piqe:{}, niqe:{}, brisque:{}".format(path, p_score/(idx+1), n_score/(idx+1), b_score/(idx+1)))
+        
+
+        obj = BRISQUE(url=False)
+        b_score_2 = obj.score(np.array(im))
+        b_score_2_sum += b_score_2
+        
+        print("idx:{} Path: {}----- piqe:{}, niqe:{}, brisque:{}, b_score_2:{}".format(idx, file_path, p_score, n_score, b_score, b_score_2))
+    print("{} avg:  piqe:{}, niqe:{}, brisque:{}, b_score_2:{}".format(path, p_score_sum/(idx+1), n_score_sum/(idx+1), b_score_sum/(idx+1), b_score_2_sum/(idx+1)))
 

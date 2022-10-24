@@ -54,11 +54,13 @@ parser.add_argument('--ndf', type=int, default=32)
 # attack setup
 parser.add_argument('--lr', type=float, default=0.02, help='learning rate used for adversarial attack')
 parser.add_argument('--cuda', type=str, default='True', help='Availability of cuda')
-parser.add_argument('--iters', type=int, default=50, help='number of attack iterations')
+parser.add_argument('--iters', type=int, default=300, help='number of attack iterations')
+parser.add_argument('--early_stopping', type=str, default='True', help='stop once attack succeed. False for black box attack or PCA visualization')
 
 args = parser.parse_args()
 args.cuda = True if args.cuda == 'True' else False
 args.load_model = True if args.load_model == 'True' else False
+args.early_stopping = True if args.early_stopping == 'True' else False
 if args.load_iter:
     args.load_iter_1 = args.load_iter_2 = args.load_iter_34 = args.load_iter
 
@@ -114,10 +116,7 @@ rain_synthesizer = RainSynthesisDepth(alpha=0.002, beta=0.01, r_r=2, a=0.9)
 #         outputs = classifier(center_crop(normalize(syn_img)))
 #         prediction = torch.argmax(outputs)
 #         adv_loss = -F.cross_entropy(outputs, to_device(torch.Tensor([gt]).long()))
-#         attacker.step(adv_loss)
-#         # pbar.set_description("Image %02d | Iter %02d | Adv loss=%.3f | gt: %03d | pred clean: %03d | pred: %03d" % \
-#         #                     (idx, iter_i, adv_loss, gt, pred_clean, prediction))
-#         pbar.set_description("Image %02d | Iter %02d | Adv loss=%.3f | gt: %03d | pred: %03d | status: %s" % \
+#         attacker.step(adv_loss)piqe:10.157714676319415, niqe:23.488854434557343, brisque:0.5136443706322593, b_score_2:35.12750442945263 gt: %03d | pred: %03d | status: %s" % \
 #                             (idx, iter_i, adv_loss, gt, prediction, "SUCC" if prediction != gt else "FAILD"))
 #     save_adv_img(syn_img, args.save_path, filename)
         
@@ -136,8 +135,11 @@ imagenet = ImageFolder(
                 Resize((256,256)),
                 ToTensor(),
             ]))
-imagenet_loader = DataLoader(imagenet, shuffle=False)
+imagenet_loader = DataLoader(imagenet, shuffle=True)
+succ_count = 0
 for idx, (image, label) in enumerate(imagenet_loader):
+    if idx >= 1000:
+            break
     with torch.no_grad():
         img_np = np.array((image[0] * 255)).astype(np.uint8).transpose((1,2,0))
         depth = depth_predicter(to_device(depth_predicter.midas_transforms(img_np)), args.image_size).detach()
@@ -146,13 +148,11 @@ for idx, (image, label) in enumerate(imagenet_loader):
     attacker.init_para(cond_limit=[[1,1,1,1],[0,0,0,0]], cond_fix=[0.5,1,0.5,0.5])
     attacker.set_atk_para(iterations=args.iters)
     cropped_img = center_crop(normalize(image))
-    print(cropped_img)
     outputs = classifier(cropped_img)
     pred_clean = torch.argmax(outputs)
-    print(pred_clean.item())
-    print(classifier)
     
     pbar = tqdm(range(args.iters), total=args.iters)
+    
     for iter_i in pbar:
         rain_pattern = attacker.generate_pattern()
         syn_img = rain_synthesizer.synthesize(image, depth, rain_pattern)
@@ -163,7 +163,27 @@ for idx, (image, label) in enumerate(imagenet_loader):
         attacker.step(adv_loss)
         # pbar.set_description("Image %02d | Iter %02d | Adv loss=%.3f | gt: %03d | pred clean: %03d | pred: %03d" % \
         #                     (idx, iter_i, adv_loss, gt, pred_clean, prediction))
+        succ = prediction.item() != label.item()
         pbar.set_description("Image %02d | Iter %02d | Adv loss=%.3f | gt: %03d | pred: %03d | status: %s" % \
-                            (idx, iter_i, adv_loss, label, prediction, "SUCC" if prediction.item() != label.item() else "FAILD"))
+                            (idx, iter_i, adv_loss, label, prediction, "SUCC" if succ else "FAILD"))
+        if succ and args.early_stopping:
+            break
+            
+    succ_count += 1 if succ else 0
     save_adv_img(syn_img, args.save_path, str(idx)+'.png')
     
+# print("Attack Success Rate:", succ_count/idx)
+    
+# imagenet = ImageFolder(
+#             args.data_path,
+#             Compose([
+#                 Resize((256,256)),
+#                 ToTensor(),
+#             ]))
+# imagenet_loader = DataLoader(imagenet, shuffle=True)
+# succ_count = 0
+# for idx, (image, label) in enumerate(imagenet_loader):
+    
+#     save_adv_img(image + (torch.rand_like(image) - 0.5) * 80 / 255, args.save_path, str(idx)+'.png')
+    
+print("Attack Success Rate:", succ_count/idx)
